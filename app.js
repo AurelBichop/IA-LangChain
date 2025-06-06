@@ -3,9 +3,12 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import * as dotenv from 'dotenv';
 import { Document } from "@langchain/core/documents";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
-//import { RecursiveCharaterTextSplitter } from "langchain/text_splitter";
-//import { OllamaEmbeddings } from "@langchain/ollama";
-//import {  MemoryVectorStore } from "langchain/chains/retrieval";
+import { createRetrievalChain } from "langchain/chains/retrieval";
+import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { OllamaEmbeddings } from "@langchain/ollama";
+import { MemoryVectorStore } from "langchain/vectorstores/memory";
+
 
 dotenv.config();
 
@@ -31,10 +34,41 @@ const chain = await createStuffDocumentsChain({
 })
 
 
-const response = await chain.invoke({
-    input: "What is Aurel's job?",
-    context: [resume_aurel],
+//charge le contenu de la page web
+const loader = new CheerioWebBaseLoader("https://python.langchain.com/docs/integrations/document_loaders/spider/");
+const docs = await loader.load();
+
+const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 250,
+    chunkOverlap: 50,
+});
+
+//Découpage du contenu en morceaux de 250 caracteres
+const splittedDocs = await splitter.splitDocuments(docs);
+//console.log(splittedDocs)
+
+// Met en place l'embeddings 
+const ollamaEmbeddings = new OllamaEmbeddings({
+    model: "llama3.2",
+    baseUrl: "http://127.0.0.1:11434"
+});
+
+//Crée un vecteur de documents à partir des morceaux de documents
+const vectorStore = await MemoryVectorStore.fromDocuments(splittedDocs, ollamaEmbeddings);
+
+const retriever = vectorStore.asRetriever({
+    k: 2,
+});
+
+const retrievalChain = await createRetrievalChain({
+    combineDocsChain: chain,
+    retriever,
+});
+
+
+const response = await retrievalChain.invoke({
+    input: "What is spider web loader?",
 })
 
 
-console.log(response);
+console.log(response); 
