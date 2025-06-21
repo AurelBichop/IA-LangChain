@@ -8,6 +8,7 @@ import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 
 
 dotenv.config();
@@ -33,6 +34,10 @@ const chain = await createStuffDocumentsChain({
     documentSeparator: [resume_aurel]
 })
 
+//Exemple charger un document PDF
+const pdfLoader = new PDFLoader("test.pdf");
+const pdfDocs = await pdfLoader.load();
+//console.log(pdfDocs);
 
 //charge le contenu de la page web
 const loader = new CheerioWebBaseLoader("https://python.langchain.com/docs/integrations/document_loaders/spider/");
@@ -46,6 +51,11 @@ const splitter = new RecursiveCharacterTextSplitter({
 //Découpage du contenu en morceaux de 250 caracteres
 const splittedDocs = await splitter.splitDocuments(docs);
 //console.log(splittedDocs)
+
+// Ajoute le pdf au document splitted
+splittedDocs.push(...pdfDocs);
+console.log(splittedDocs)
+
 
 // Met en place l'embeddings 
 const ollamaEmbeddings = new OllamaEmbeddings({
@@ -67,7 +77,7 @@ const retrievalChain = await createRetrievalChain({
 
 
 const response = await retrievalChain.invoke({
-    input: "What is spider web loader?",
+    input: "Qui est Aurel ?",
 })
 
 
